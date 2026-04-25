@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
@@ -83,9 +82,10 @@ class HALogAnalyzerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         agent_ids = self._discover_agent_ids(self.hass)
         if user_input is not None:
             agent_id = str(user_input.get(CONF_CONVERSATION_AGENT_ID, "")).strip()
+            log_file_path = str(user_input.get(CONF_LOG_FILE_PATH, "")).strip()
             if agent_ids and agent_id not in agent_ids:
                 errors["base"] = "unknown_agent"
-            if not Path(user_input[CONF_LOG_FILE_PATH]).exists():
+            if not log_file_path:
                 errors["base"] = "cannot_read_log"
             elif not errors:
                 return self.async_create_entry(title="HA Log Analyzer", data=user_input)
