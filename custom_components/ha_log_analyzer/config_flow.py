@@ -25,6 +25,7 @@ from .const import (
     DOMAIN,
     LOG_SOURCE_API,
     LOG_SOURCE_FILE,
+    LOG_SOURCE_SYSTEM_LOG,
 )
 
 
@@ -42,7 +43,7 @@ def _schema_with_defaults(
             ): str,
             vol.Required(
                 CONF_LOG_SOURCE, default=data.get(CONF_LOG_SOURCE, DEFAULT_LOG_SOURCE)
-            ): vol.In([LOG_SOURCE_API, LOG_SOURCE_FILE]),
+            ): vol.In([LOG_SOURCE_SYSTEM_LOG, LOG_SOURCE_API, LOG_SOURCE_FILE]),
             vol.Required(
                 CONF_LOG_FILE_PATH, default=data.get(CONF_LOG_FILE_PATH, DEFAULT_LOG_FILE_PATH)
             ): str,

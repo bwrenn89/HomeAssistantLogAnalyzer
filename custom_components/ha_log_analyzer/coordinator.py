@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from aiohttp import ClientError
+from homeassistant.components.system_log import DOMAIN as SYSTEM_LOG_DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
@@ -26,6 +27,7 @@ from .const import (
     DOMAIN,
     LOG_SOURCE_API,
     LOG_SOURCE_FILE,
+    LOG_SOURCE_SYSTEM_LOG,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
@@ -55,6 +57,31 @@ async def _fetch_logs_via_api(hass: HomeAssistant, ha_url: str, token: str) -> s
             return await response.text()
     except ClientError as exc:
         raise RuntimeError(f"Failed to pull logs from Home Assistant API: {exc}") from exc
+
+
+def _fetch_logs_from_system_log(hass: HomeAssistant) -> str:
+    handler = hass.data.get(SYSTEM_LOG_DOMAIN)
+    if handler is None or not hasattr(handler, "records"):
+        raise RuntimeError(
+            "system_log is not available. Enable the System Log integration or choose another log source."
+        )
+
+    try:
+        rows = handler.records.to_list()
+    except Exception as exc:
+        raise RuntimeError(f"Failed to read system_log records: {exc}") from exc
+
+    lines: list[str] = []
+    for row in rows:
+        messages = row.get("message", [])
+        message_text = " | ".join(messages) if isinstance(messages, list) else str(messages)
+        lines.append(
+            f"[{row.get('level', 'UNKNOWN')}] "
+            f"{row.get('name', 'unknown')}: {message_text}"
+        )
+        if row.get("exception"):
+            lines.append(str(row["exception"]))
+    return "\n".join(lines)
 
 
 class HALogAnalyzerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -119,7 +146,9 @@ class HALogAnalyzerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed("Conversation agent ID is missing.")
 
         try:
-            if log_source == LOG_SOURCE_API:
+            if log_source == LOG_SOURCE_SYSTEM_LOG:
+                logs = _fetch_logs_from_system_log(self.hass)
+            elif log_source == LOG_SOURCE_API:
                 if not ha_url or not ha_token:
                     raise RuntimeError("HA API source requires URL and token.")
                 logs = await _fetch_logs_via_api(self.hass, ha_url=ha_url, token=ha_token)
