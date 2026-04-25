@@ -36,6 +36,7 @@ from .gemini import PROMPT, normalize_issues_from_text
 MAX_PROMPT_CHARS = 12000
 MAX_SYSTEM_LOG_EXCEPTION_CHARS = 1200
 MAX_SYSTEM_LOG_MESSAGE_CHARS = 400
+MIN_LOG_CHARS = 300
 
 
 def _now_iso() -> str:
@@ -96,11 +97,18 @@ def _fetch_logs_from_system_log(hass: HomeAssistant) -> str:
 
 
 def _clip_for_conversation(logs: str, requested_log_chars: int) -> str:
-    allowed_log_chars = max(500, min(requested_log_chars, MAX_PROMPT_CHARS - len(PROMPT) - 100))
+    allowed_log_chars = max(
+        MIN_LOG_CHARS, min(requested_log_chars, MAX_PROMPT_CHARS - len(PROMPT) - 100)
+    )
     clipped = logs[-allowed_log_chars:]
     if len(clipped) > allowed_log_chars:
         clipped = clipped[-allowed_log_chars:]
     return clipped
+
+
+def _is_text_too_long_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "text_query too long" in msg or "invalid_assistconfig" in msg
 
 
 class HALogAnalyzerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -184,37 +192,56 @@ class HALogAnalyzerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self.async_save()
             raise UpdateFailed(self.last_error) from exc
 
-        logs = _clip_for_conversation(logs, max_chars)
-        prompt = f"{PROMPT}\n\nHome Assistant logs:\n\n{logs}"
+        initial_chars = max(MIN_LOG_CHARS, max_chars)
+        retry_sizes = [initial_chars, 3000, 1800, 1000, 600, 400, MIN_LOG_CHARS]
+        seen_sizes: set[int] = set()
+        issues: list[dict[str, str]] | None = None
+        last_exc: Exception | None = None
 
-        try:
-            result = await self.hass.services.async_call(
-                "conversation",
-                "process",
-                {"agent_id": agent_id, "text": prompt},
-                blocking=True,
-                return_response=True,
-            )
-            response_text = (
-                result.get("response", {})
-                .get("speech", {})
-                .get("plain", {})
-                .get("speech", "")
-            )
-            if not response_text:
+        for size in retry_sizes:
+            if size in seen_sizes:
+                continue
+            seen_sizes.add(size)
+            clipped_logs = _clip_for_conversation(logs, size)
+            prompt = f"{PROMPT}\n\nHome Assistant logs:\n\n{clipped_logs}"
+            try:
+                result = await self.hass.services.async_call(
+                    "conversation",
+                    "process",
+                    {"agent_id": agent_id, "text": prompt},
+                    blocking=True,
+                    return_response=True,
+                )
                 response_text = (
                     result.get("response", {})
                     .get("speech", {})
+                    .get("plain", {})
                     .get("speech", "")
                 )
-            if not response_text:
-                raise RuntimeError("Conversation agent returned an empty response.")
+                if not response_text:
+                    response_text = (
+                        result.get("response", {})
+                        .get("speech", {})
+                        .get("speech", "")
+                    )
+                if not response_text:
+                    raise RuntimeError("Conversation agent returned an empty response.")
+                issues = normalize_issues_from_text(response_text)
+                break
+            except Exception as exc:
+                last_exc = exc
+                if _is_text_too_long_error(exc):
+                    continue
+                self.last_error = str(exc)
+                await self.async_save()
+                raise UpdateFailed(self.last_error) from exc
 
-            issues = normalize_issues_from_text(response_text)
-        except Exception as exc:
-            self.last_error = str(exc)
+        if issues is None:
+            if last_exc is None:
+                last_exc = RuntimeError("Conversation analysis failed with unknown error.")
+            self.last_error = str(last_exc)
             await self.async_save()
-            raise UpdateFailed(self.last_error) from exc
+            raise UpdateFailed(self.last_error) from last_exc
 
         now = _now_iso()
         created = 0

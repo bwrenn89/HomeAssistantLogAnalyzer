@@ -7,26 +7,9 @@ import re
 from typing import Any
 
 PROMPT = """
-You are an SRE assistant analyzing Home Assistant logs.
-Find distinct unresolved issues and suggest concrete fixes.
-
-Return JSON only:
-{
-  "issues": [
-    {
-      "title": "short title",
-      "severity": "low|medium|high|critical",
-      "description": "what is happening and impact",
-      "suggested_fix": "clear and actionable fix",
-      "signature_hint": "stable text used for dedup"
-    }
-  ]
-}
-
-Rules:
-- No markdown.
-- Group repeated errors.
-- If no unresolved issues, return {"issues":[]}.
+Analyze Home Assistant logs. Return JSON only:
+{"issues":[{"title":"","severity":"low|medium|high|critical","description":"","suggested_fix":"","signature_hint":""}]}
+Rules: no markdown, group repeated errors, unresolved issues only, or {"issues":[]}.
 """
 
 
