@@ -8,16 +8,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from aiohttp import ClientError
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
     CONF_CONVERSATION_AGENT_ID,
+    CONF_HOME_ASSISTANT_TOKEN,
+    CONF_HOME_ASSISTANT_URL,
     CONF_LOG_FILE_PATH,
+    CONF_LOG_SOURCE,
     CONF_MAX_LOG_CHARS,
     CONF_POLL_INTERVAL_MINUTES,
+    DEFAULT_LOG_SOURCE,
     DOMAIN,
+    LOG_SOURCE_API,
+    LOG_SOURCE_FILE,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
@@ -35,6 +43,18 @@ def _fingerprint(issue: dict[str, str]) -> str:
         f"{issue.get('description', '').strip().lower()[:180]}"
     )
     return hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+
+async def _fetch_logs_via_api(hass: HomeAssistant, ha_url: str, token: str) -> str:
+    session = async_get_clientsession(hass)
+    url = f"{ha_url.rstrip('/')}/api/error_log"
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        async with session.get(url, headers=headers, timeout=30) as response:
+            response.raise_for_status()
+            return await response.text()
+    except ClientError as exc:
+        raise RuntimeError(f"Failed to pull logs from Home Assistant API: {exc}") from exc
 
 
 class HALogAnalyzerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -89,20 +109,30 @@ class HALogAnalyzerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.async_refresh_interval()
         cfg = self.merged_config
         agent_id = str(cfg.get(CONF_CONVERSATION_AGENT_ID, "")).strip()
+        log_source = str(cfg.get(CONF_LOG_SOURCE, DEFAULT_LOG_SOURCE)).strip()
         log_file_path = str(cfg.get(CONF_LOG_FILE_PATH, "")).strip()
+        ha_url = str(cfg.get(CONF_HOME_ASSISTANT_URL, "")).strip()
+        ha_token = str(cfg.get(CONF_HOME_ASSISTANT_TOKEN, "")).strip()
         max_chars = int(cfg.get(CONF_MAX_LOG_CHARS, 120000))
 
         if not agent_id:
             raise UpdateFailed("Conversation agent ID is missing.")
-        if not log_file_path:
-            raise UpdateFailed("Log file path is missing.")
 
         try:
-            logs = await self.hass.async_add_executor_job(
-                lambda: Path(log_file_path).read_text(encoding="utf-8", errors="replace")
-            )
-        except OSError as exc:
-            self.last_error = f"Failed to read log file: {exc}"
+            if log_source == LOG_SOURCE_API:
+                if not ha_url or not ha_token:
+                    raise RuntimeError("HA API source requires URL and token.")
+                logs = await _fetch_logs_via_api(self.hass, ha_url=ha_url, token=ha_token)
+            elif log_source == LOG_SOURCE_FILE:
+                if not log_file_path:
+                    raise RuntimeError("Log file source requires log_file_path.")
+                logs = await self.hass.async_add_executor_job(
+                    lambda: Path(log_file_path).read_text(encoding="utf-8", errors="replace")
+                )
+            else:
+                raise RuntimeError(f"Unsupported log source: {log_source}")
+        except (OSError, RuntimeError) as exc:
+            self.last_error = str(exc)
             await self.async_save()
             raise UpdateFailed(self.last_error) from exc
 

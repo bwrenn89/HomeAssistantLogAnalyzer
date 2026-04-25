@@ -12,12 +12,19 @@ from homeassistant.core import callback
 from .const import (
     CONF_CONVERSATION_AGENT_ID,
     CONF_LOG_FILE_PATH,
+    CONF_LOG_SOURCE,
+    CONF_HOME_ASSISTANT_TOKEN,
+    CONF_HOME_ASSISTANT_URL,
     CONF_MAX_LOG_CHARS,
     CONF_POLL_INTERVAL_MINUTES,
+    DEFAULT_HOME_ASSISTANT_URL,
     DEFAULT_LOG_FILE_PATH,
+    DEFAULT_LOG_SOURCE,
     DEFAULT_MAX_LOG_CHARS,
     DEFAULT_POLL_INTERVAL_MINUTES,
     DOMAIN,
+    LOG_SOURCE_API,
+    LOG_SOURCE_FILE,
 )
 
 
@@ -34,7 +41,17 @@ def _schema_with_defaults(
                 default=data.get(CONF_CONVERSATION_AGENT_ID, default_agent_id),
             ): str,
             vol.Required(
+                CONF_LOG_SOURCE, default=data.get(CONF_LOG_SOURCE, DEFAULT_LOG_SOURCE)
+            ): vol.In([LOG_SOURCE_API, LOG_SOURCE_FILE]),
+            vol.Required(
                 CONF_LOG_FILE_PATH, default=data.get(CONF_LOG_FILE_PATH, DEFAULT_LOG_FILE_PATH)
+            ): str,
+            vol.Required(
+                CONF_HOME_ASSISTANT_URL,
+                default=data.get(CONF_HOME_ASSISTANT_URL, DEFAULT_HOME_ASSISTANT_URL),
+            ): str,
+            vol.Required(
+                CONF_HOME_ASSISTANT_TOKEN, default=data.get(CONF_HOME_ASSISTANT_TOKEN, "")
             ): str,
             vol.Required(
                 CONF_POLL_INTERVAL_MINUTES,
@@ -82,11 +99,16 @@ class HALogAnalyzerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         agent_ids = self._discover_agent_ids(self.hass)
         if user_input is not None:
             agent_id = str(user_input.get(CONF_CONVERSATION_AGENT_ID, "")).strip()
+            source = str(user_input.get(CONF_LOG_SOURCE, DEFAULT_LOG_SOURCE)).strip()
             log_file_path = str(user_input.get(CONF_LOG_FILE_PATH, "")).strip()
+            ha_url = str(user_input.get(CONF_HOME_ASSISTANT_URL, "")).strip()
+            ha_token = str(user_input.get(CONF_HOME_ASSISTANT_TOKEN, "")).strip()
             if agent_ids and agent_id not in agent_ids:
                 errors["base"] = "unknown_agent"
-            if not log_file_path:
+            if source == LOG_SOURCE_FILE and not log_file_path:
                 errors["base"] = "cannot_read_log"
+            if source == LOG_SOURCE_API and (not ha_url or not ha_token):
+                errors["base"] = "missing_api_config"
             elif not errors:
                 return self.async_create_entry(title="HA Log Analyzer", data=user_input)
 
@@ -138,6 +160,16 @@ class HALogAnalyzerOptionsFlow(config_entries.OptionsFlow):
             ),
             CONF_LOG_FILE_PATH: self.config_entry.options.get(
                 CONF_LOG_FILE_PATH, self.config_entry.data.get(CONF_LOG_FILE_PATH, DEFAULT_LOG_FILE_PATH)
+            ),
+            CONF_LOG_SOURCE: self.config_entry.options.get(
+                CONF_LOG_SOURCE, self.config_entry.data.get(CONF_LOG_SOURCE, DEFAULT_LOG_SOURCE)
+            ),
+            CONF_HOME_ASSISTANT_URL: self.config_entry.options.get(
+                CONF_HOME_ASSISTANT_URL,
+                self.config_entry.data.get(CONF_HOME_ASSISTANT_URL, DEFAULT_HOME_ASSISTANT_URL),
+            ),
+            CONF_HOME_ASSISTANT_TOKEN: self.config_entry.options.get(
+                CONF_HOME_ASSISTANT_TOKEN, self.config_entry.data.get(CONF_HOME_ASSISTANT_TOKEN, "")
             ),
             CONF_POLL_INTERVAL_MINUTES: self.config_entry.options.get(
                 CONF_POLL_INTERVAL_MINUTES,

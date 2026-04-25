@@ -28,7 +28,11 @@ It analyzes your Home Assistant log file using your existing Home Assistant Gemi
 During config flow, provide:
 
 - `Conversation agent ID` (helper included: available IDs are auto-discovered and shown during setup/options)
-- `Log file path` (default: `/config/home-assistant.log`)
+- `Log source`:
+  - `ha_api` (recommended): fetches logs from `/api/error_log`
+  - `file`: reads local file path
+- `Home Assistant URL` + `Long-lived access token` (required for `ha_api`)
+- `Log file path` (used only for `file` source, default `/config/home-assistant.log`)
 - `Poll interval (minutes)`
 - `Max characters sent to agent`
 
@@ -63,3 +67,4 @@ Each Gemini issue is fingerprinted using normalized title + signature hint + des
 - This integration reads a local log file path from inside Home Assistant.
 - For Home Assistant OS in VirtualBox, `/config/home-assistant.log` is usually correct.
 - This integration does not call Gemini directly; it uses Home Assistant's `conversation.process` service with your configured agent.
+- If your HA instance does not expose a local log file in File Editor, use `ha_api` log source.

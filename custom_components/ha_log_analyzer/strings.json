@@ -7,7 +7,10 @@
         "description": "Analyze Home Assistant logs using your configured conversation agent (Gemini) and track deduplicated issues.\n\nDiscovered agent IDs: {available_agents}",
         "data": {
           "conversation_agent_id": "Conversation agent ID (Gemini agent)",
+          "log_source": "Log source",
           "log_file_path": "Log file path",
+          "home_assistant_url": "Home Assistant URL (for API log source)",
+          "home_assistant_token": "Long-lived access token (for API log source)",
           "poll_interval_minutes": "Poll interval (minutes)",
           "max_log_chars": "Max characters sent to agent"
         }
@@ -15,7 +18,8 @@
     },
     "error": {
       "cannot_read_log": "Could not read the configured log file.",
-      "unknown_agent": "The selected agent ID is not currently available."
+      "unknown_agent": "The selected agent ID is not currently available.",
+      "missing_api_config": "Home Assistant URL and token are required for API log source."
     },
     "abort": {
       "single_instance_allowed": "Only one instance is allowed."
@@ -28,7 +32,10 @@
         "description": "Discovered agent IDs: {available_agents}",
         "data": {
           "conversation_agent_id": "Conversation agent ID (Gemini agent)",
+          "log_source": "Log source",
           "log_file_path": "Log file path",
+          "home_assistant_url": "Home Assistant URL (for API log source)",
+          "home_assistant_token": "Long-lived access token (for API log source)",
           "poll_interval_minutes": "Poll interval (minutes)",
           "max_log_chars": "Max characters sent to agent"
         }
