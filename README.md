@@ -35,7 +35,7 @@ During config flow, provide:
 - `Home Assistant URL` + `Long-lived access token` (only required for `ha_api`)
 - `Log file path` (used only for `file` source, default `/config/home-assistant.log`)
 - `Poll interval (minutes)`
-- `Max characters sent to agent`
+- `Max characters sent to agent` (keep this small; default is optimized to avoid Gemini "text_query too long" errors)
 
 You can change these later in **Integration Options**.
 

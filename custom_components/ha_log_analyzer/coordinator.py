@@ -33,6 +33,10 @@ from .const import (
 )
 from .gemini import PROMPT, normalize_issues_from_text
 
+MAX_PROMPT_CHARS = 12000
+MAX_SYSTEM_LOG_EXCEPTION_CHARS = 1200
+MAX_SYSTEM_LOG_MESSAGE_CHARS = 400
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -75,13 +79,28 @@ def _fetch_logs_from_system_log(hass: HomeAssistant) -> str:
     for row in rows:
         messages = row.get("message", [])
         message_text = " | ".join(messages) if isinstance(messages, list) else str(messages)
+        if len(message_text) > MAX_SYSTEM_LOG_MESSAGE_CHARS:
+            message_text = message_text[:MAX_SYSTEM_LOG_MESSAGE_CHARS] + "... [truncated]"
         lines.append(
             f"[{row.get('level', 'UNKNOWN')}] "
             f"{row.get('name', 'unknown')}: {message_text}"
         )
         if row.get("exception"):
-            lines.append(str(row["exception"]))
+            exception_text = str(row["exception"])
+            if len(exception_text) > MAX_SYSTEM_LOG_EXCEPTION_CHARS:
+                exception_text = (
+                    exception_text[:MAX_SYSTEM_LOG_EXCEPTION_CHARS] + "... [truncated]"
+                )
+            lines.append(exception_text)
     return "\n".join(lines)
+
+
+def _clip_for_conversation(logs: str, requested_log_chars: int) -> str:
+    allowed_log_chars = max(500, min(requested_log_chars, MAX_PROMPT_CHARS - len(PROMPT) - 100))
+    clipped = logs[-allowed_log_chars:]
+    if len(clipped) > allowed_log_chars:
+        clipped = clipped[-allowed_log_chars:]
+    return clipped
 
 
 class HALogAnalyzerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -140,7 +159,7 @@ class HALogAnalyzerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         log_file_path = str(cfg.get(CONF_LOG_FILE_PATH, "")).strip()
         ha_url = str(cfg.get(CONF_HOME_ASSISTANT_URL, "")).strip()
         ha_token = str(cfg.get(CONF_HOME_ASSISTANT_TOKEN, "")).strip()
-        max_chars = int(cfg.get(CONF_MAX_LOG_CHARS, 120000))
+        max_chars = int(cfg.get(CONF_MAX_LOG_CHARS, 6000))
 
         if not agent_id:
             raise UpdateFailed("Conversation agent ID is missing.")
@@ -165,7 +184,7 @@ class HALogAnalyzerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self.async_save()
             raise UpdateFailed(self.last_error) from exc
 
-        logs = logs[-max_chars:]
+        logs = _clip_for_conversation(logs, max_chars)
         prompt = f"{PROMPT}\n\nHome Assistant logs:\n\n{logs}"
 
         try:

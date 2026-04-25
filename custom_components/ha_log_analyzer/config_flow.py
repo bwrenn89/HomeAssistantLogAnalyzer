@@ -60,7 +60,7 @@ def _schema_with_defaults(
             ): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440)),
             vol.Required(
                 CONF_MAX_LOG_CHARS, default=data.get(CONF_MAX_LOG_CHARS, DEFAULT_MAX_LOG_CHARS)
-            ): vol.All(vol.Coerce(int), vol.Range(min=5000, max=1000000)),
+            ): vol.All(vol.Coerce(int), vol.Range(min=1000, max=20000)),
         }
     )
 
