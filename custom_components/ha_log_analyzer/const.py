@@ -1,0 +1,22 @@
+"""Constants for the HA Log Analyzer integration."""
+
+from homeassistant.const import Platform
+
+DOMAIN = "ha_log_analyzer"
+PLATFORMS = [Platform.SENSOR]
+
+CONF_CONVERSATION_AGENT_ID = "conversation_agent_id"
+CONF_LOG_FILE_PATH = "log_file_path"
+CONF_POLL_INTERVAL_MINUTES = "poll_interval_minutes"
+CONF_MAX_LOG_CHARS = "max_log_chars"
+
+DEFAULT_LOG_FILE_PATH = "/config/home-assistant.log"
+DEFAULT_POLL_INTERVAL_MINUTES = 15
+DEFAULT_MAX_LOG_CHARS = 120000
+
+STORAGE_VERSION = 1
+STORAGE_KEY = f"{DOMAIN}_issues"
+
+SERVICE_RUN_ANALYSIS = "run_analysis"
+SERVICE_RESOLVE_ISSUE = "resolve_issue"
+SERVICE_REOPEN_ISSUE = "reopen_issue"

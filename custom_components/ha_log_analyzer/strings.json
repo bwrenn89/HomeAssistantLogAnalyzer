@@ -1,0 +1,64 @@
+{
+  "title": "HA Log Analyzer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure HA Log Analyzer",
+        "description": "Analyze Home Assistant logs using your configured conversation agent (Gemini) and track deduplicated issues.\n\nDiscovered agent IDs: {available_agents}",
+        "data": {
+          "conversation_agent_id": "Conversation agent ID (Gemini agent)",
+          "log_file_path": "Log file path",
+          "poll_interval_minutes": "Poll interval (minutes)",
+          "max_log_chars": "Max characters sent to agent"
+        }
+      }
+    },
+    "error": {
+      "cannot_read_log": "Could not read the configured log file.",
+      "unknown_agent": "The selected agent ID is not currently available."
+    },
+    "abort": {
+      "single_instance_allowed": "Only one instance is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HA Log Analyzer options",
+        "description": "Discovered agent IDs: {available_agents}",
+        "data": {
+          "conversation_agent_id": "Conversation agent ID (Gemini agent)",
+          "log_file_path": "Log file path",
+          "poll_interval_minutes": "Poll interval (minutes)",
+          "max_log_chars": "Max characters sent to agent"
+        }
+      }
+    }
+  },
+  "services": {
+    "run_analysis": {
+      "name": "Run analysis now",
+      "description": "Run Gemini analysis immediately."
+    },
+    "resolve_issue": {
+      "name": "Resolve issue",
+      "description": "Mark an issue as resolved.",
+      "fields": {
+        "fingerprint": {
+          "name": "Issue fingerprint",
+          "description": "Unique issue fingerprint."
+        }
+      }
+    },
+    "reopen_issue": {
+      "name": "Reopen issue",
+      "description": "Mark an issue as open again.",
+      "fields": {
+        "fingerprint": {
+          "name": "Issue fingerprint",
+          "description": "Unique issue fingerprint."
+        }
+      }
+    }
+  }
+}

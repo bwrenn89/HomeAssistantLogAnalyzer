@@ -1,0 +1,14 @@
+{
+  "domain": "ha_log_analyzer",
+  "name": "HA Log Analyzer",
+  "version": "0.1.0",
+  "documentation": "https://github.com/your-user/home-assistant-log-analyzer",
+  "issue_tracker": "https://github.com/your-user/home-assistant-log-analyzer/issues",
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "codeowners": [
+    "@your-user"
+  ],
+  "requirements": [],
+  "dependencies": []
+}

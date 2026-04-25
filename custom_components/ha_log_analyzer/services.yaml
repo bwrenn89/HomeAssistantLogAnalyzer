@@ -1,0 +1,21 @@
+run_analysis:
+  name: Run analysis now
+  description: Run Gemini analysis immediately.
+
+resolve_issue:
+  name: Resolve issue
+  description: Mark an issue as resolved.
+  fields:
+    fingerprint:
+      required: true
+      selector:
+        text:
+
+reopen_issue:
+  name: Reopen issue
+  description: Mark an issue as open again.
+  fields:
+    fingerprint:
+      required: true
+      selector:
+        text:
